@@ -154,6 +154,33 @@ void VerilatedFst::declDTypeEnum(int dtypenum, const char* name, uint32_t elemen
     m_local2fstdtype[dtypenum] = enumNum;
 }
 
+#include <string_view>
+#include <iostream>
+
+std::vector<std::string> split_hierarchy(const std::string& str) {
+    std::vector<std::string> result;
+    std::string_view remaining(str);
+    std::cout << str << std::endl;
+    while(1) {
+        auto pos = remaining.find_first_of(" $");
+        if(pos != std::string_view::npos) {
+            if((pos+1) < remaining.length() && remaining[pos+1] == '$') {
+                result.emplace_back(std::string(remaining.substr(0, pos)) + (char)(0x80 + FST_ST_VHDL_RECORD));
+                std::cout << result.back().substr(0, result.back().length() - 1) << "." ;
+                remaining.remove_prefix(pos + 2);
+            } else {
+                result.emplace_back(remaining.substr(0, pos));
+                std::cout << result.back() << "/";
+                remaining.remove_prefix(pos + 1);
+            }
+        } else {
+            result.emplace_back(std::string(remaining));
+            std::cout << result.back() << std::endl << std::endl;
+            return result;
+        }
+    };
+}
+
 void VerilatedFst::declare(uint32_t code, const char* name, int dtypenum, fstVarDir vardir,
                            fstVarType vartype, bool array, int arraynum, bool bussed, int msb,
                            int lsb) {
@@ -163,12 +190,10 @@ void VerilatedFst::declare(uint32_t code, const char* name, int dtypenum, fstVar
     if (!enabled) return;
 
     std::string nameasstr = namePrefix() + name;
-    std::istringstream nameiss{nameasstr};
-    std::istream_iterator<std::string> beg(nameiss);
-    std::istream_iterator<std::string> end;
-    std::list<std::string> tokens(beg, end);  // Split name
+    auto tokens = split_hierarchy(nameasstr);
     std::string symbol_name{tokens.back()};
     tokens.pop_back();  // Remove symbol name from hierarchy
+    
     std::string tmpModName;
 
     // Find point where current and new scope diverge
